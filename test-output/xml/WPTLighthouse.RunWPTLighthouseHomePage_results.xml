@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="WebPageTest API - Home Page"
+           tests="1"
+           failures="0"
+           errors="0"
+           skipped="0"
+           time="152.478">
+  <properties />
+  
+  
+            <testcase name="runHomePagePerformanceTest" time="152.478" classname="WPTLighthouse.RunWPTLighthouseHomePage" />
+      
+</testsuite>
