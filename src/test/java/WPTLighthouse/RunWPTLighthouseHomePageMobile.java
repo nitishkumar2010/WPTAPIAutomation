@@ -12,7 +12,7 @@ public class RunWPTLighthouseHomePageMobile extends TestBase {
 	public void runHomePagePerformanceTest(Config testConfig) {
 
 		String fileName = testConfig.getRunTimeProperty("FileName");
-		String url = testConfig.getRunTimeProperty("HomePage");
+		String url = testConfig.getRunTimeProperty("HomePageMobile");
 		int mobileRun = 1;
 		
 		APIHelperLighthouse apiHelper = new APIHelperLighthouse(testConfig);

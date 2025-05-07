@@ -15,7 +15,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
-import java.util.concurrent.TimeUnit;
 
 import javax.imageio.IIOImage;
 import javax.imageio.ImageIO;
@@ -380,7 +379,6 @@ public class Browser {
 	 * @return new browser instance
 	 * @throws IOException
 	 */
-	@SuppressWarnings("static-access")
 	public static WebDriver openBrowser(Config testConfig) {
 		WebDriver driver = null;
 		String browser = testConfig.getRunTimeProperty("Browser");
@@ -428,8 +426,8 @@ public class Browser {
 
 			((LocationContext)driver).setLocation(new Location(30.2672, -97.7431, 0));
 
-			String username = testConfig.getRunTimeProperty("Username");
-			String password = testConfig.getRunTimeProperty("Password");
+			//String username = testConfig.getRunTimeProperty("Username");
+			//String password = testConfig.getRunTimeProperty("Password");
 
 			/*
 			 * if(!testConfig.getRunTimeProperty("Environment").equals("BRPProd")) {
@@ -447,10 +445,10 @@ public class Browser {
 		}
 
 		if (driver != null) {
-			Long ObjectWaitTime = Long.parseLong(testConfig.getRunTimeProperty("ObjectWaitTime"));
-			driver.manage().timeouts().implicitlyWait(ObjectWaitTime, TimeUnit.SECONDS);
-			driver.manage().timeouts().pageLoadTimeout(ObjectWaitTime * 3, TimeUnit.SECONDS);
-			driver.manage().timeouts().setScriptTimeout(ObjectWaitTime * 3, TimeUnit.SECONDS);
+			Long objectWaitTime = Long.parseLong(testConfig.getRunTimeProperty("ObjectWaitTime"));
+		    driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(objectWaitTime));
+		    driver.manage().timeouts().pageLoadTimeout(Duration.ofSeconds(objectWaitTime * 3));
+		    driver.manage().timeouts().scriptTimeout(Duration.ofSeconds(objectWaitTime * 3));
 
 			// Deciding browser's size based on mobileWeb or Web
 			if (!testConfig.isMobile) {
@@ -706,7 +704,8 @@ public class Browser {
 		}
 
 		ObjectWaitTime = Long.parseLong(testConfig.getRunTimeProperty("ObjectWaitTime"));
-		testConfig.driver.manage().timeouts().implicitlyWait(ObjectWaitTime, TimeUnit.SECONDS);
+		testConfig.driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(ObjectWaitTime));
+
 
 		Date endDate = new Date();
 		double timeTaken1 = 0;

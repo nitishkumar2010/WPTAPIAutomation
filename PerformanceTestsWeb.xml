@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd">
+<suite name="Parallel Automation Run" thread-count="1" parallel="tests">
+	<listeners>
+		<listener class-name="org.uncommons.reportng.HTMLReporter" />
+		<listener class-name="org.uncommons.reportng.JUnitXMLReporter" />
+	</listeners>
+	<test name="WebPageTest API - Home Page Desktop">
+		<classes>
+			<class name="WPTLighthouse.RunWPTLighthouseHomePageDesktop" />
+		</classes>
+	</test> <!-- Test -->
+	<test name="WebPageTest API - Search Page Desktop">
+		<classes>
+			<class name="WPTLighthouse.RunWPTLighthouseSearchPageDesktop" />
+		</classes>
+	</test>
+</suite> <!-- Suite -->

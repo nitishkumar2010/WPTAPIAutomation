@@ -35,7 +35,7 @@ import io.restassured.response.ValidatableResponse;
  * @author nikumar
  *
  */
-public class APIHelperLighthouse {
+public class APIHelperLighthouseOriginal {
 
     public Config testConfig;
     
@@ -49,7 +49,7 @@ public class APIHelperLighthouse {
         HomePage, SearchPage
     }
 
-    public APIHelperLighthouse(Config testConfig) {
+    public APIHelperLighthouseOriginal(Config testConfig) {
         this.testConfig = testConfig;
     }
 
@@ -120,34 +120,32 @@ public class APIHelperLighthouse {
              FileOutputStream outFile = new FileOutputStream(new File(System.getProperty("user.dir") + "\\Parameters\\" + fileName))) {
 
             Sheet sheet = workbook.getSheetAt(sheetNum);
+            DecimalFormat formatter = new DecimalFormat("#,###");
+            DecimalFormat df = new DecimalFormat("#.##");
 
             int rowCount = sheet.getLastRowNum();
             Row row = sheet.createRow(++rowCount);
             int columnCount = 0;
 
             row.createCell(columnCount++).setCellValue(Helper.getCurrentDate("MM.dd.YY"));
-            row.createCell(columnCount++).setCellValue(getNumericValue(loadTime));
-            row.createCell(columnCount++).setCellValue(getNumericValue(ttfb));
-            row.createCell(columnCount++).setCellValue(getNumericValue(startRender));
-            row.createCell(columnCount++).setCellValue(Integer.parseInt(speedIndexTime));
-            row.createCell(columnCount++).setCellValue(getNumericValue(largestContentfulPaint));
-            row.createCell(columnCount++).setCellValue(getNumericValue(cumulativeLayoutShift));
-            row.createCell(columnCount++).setCellValue(getNumericValue(totalBlockingTime));
-            row.createCell(columnCount++).setCellValue(getNumericValue(documentTime));
-            row.createCell(columnCount++).setCellValue(Integer.parseInt(documentRequestsCount));
-            
-            String cleaned = documentBytesIn.replace(",", "").trim();
-            row.createCell(columnCount++).setCellValue(Integer.parseInt(cleaned) / 1024);
-            row.createCell(columnCount++).setCellValue(getNumericValue(fullyLoadedTime));
-            row.createCell(columnCount++).setCellValue(Integer.parseInt(fullyLoadedRequestsCount));
-            
-            cleaned = fullBytesIn.replace(",", "").trim();
-            row.createCell(columnCount++).setCellValue(Integer.parseInt(cleaned) / 1024);
-            row.createCell(columnCount++).setCellValue(getNumericValue(seventyFivePercFCP));
-            row.createCell(columnCount++).setCellValue(getNumericValue(seventyFivePercLCP));
-            row.createCell(columnCount++).setCellValue(Math.round(Float.parseFloat(seventyFivePercCLS) * 100.0) / 100.0);
-            row.createCell(columnCount++).setCellValue(getNumericValue(seventyFivePercTTFB));
-            row.createCell(columnCount++).setCellValue(getNumericValue(seventyFivePercINP));
+            row.createCell(columnCount++).setCellValue(df.format(Float.parseFloat(loadTime) / 1000));
+            row.createCell(columnCount++).setCellValue(df.format(Float.parseFloat(ttfb) / 1000));
+            row.createCell(columnCount++).setCellValue(df.format(Float.parseFloat(startRender) / 1000));
+            row.createCell(columnCount++).setCellValue(speedIndexTime);
+            row.createCell(columnCount++).setCellValue(df.format(Float.parseFloat(largestContentfulPaint) / 1000));
+            row.createCell(columnCount++).setCellValue(df.format(Float.parseFloat(cumulativeLayoutShift)));
+            row.createCell(columnCount++).setCellValue(df.format(Float.parseFloat(totalBlockingTime) / 1000));
+            row.createCell(columnCount++).setCellValue(df.format(Float.parseFloat(documentTime) / 1000));
+            row.createCell(columnCount++).setCellValue(documentRequestsCount);
+            row.createCell(columnCount++).setCellValue(formatter.format(Integer.parseInt(documentBytesIn) / 1024) + " KB");
+            row.createCell(columnCount++).setCellValue(df.format(Float.parseFloat(fullyLoadedTime) / 1000));
+            row.createCell(columnCount++).setCellValue(fullyLoadedRequestsCount);
+            row.createCell(columnCount++).setCellValue(formatter.format(Integer.parseInt(fullBytesIn) / 1024) + " KB");
+            row.createCell(columnCount++).setCellValue(df.format(Float.parseFloat(seventyFivePercFCP) / 1000));
+            row.createCell(columnCount++).setCellValue(df.format(Float.parseFloat(seventyFivePercLCP) / 1000));
+            row.createCell(columnCount++).setCellValue(df.format(Float.parseFloat(seventyFivePercCLS)));
+            row.createCell(columnCount++).setCellValue(df.format(Float.parseFloat(seventyFivePercTTFB) / 1000));
+            row.createCell(columnCount++).setCellValue(df.format(Float.parseFloat(seventyFivePercINP) / 1000));
             row.createCell(columnCount++).setCellValue(run);
             row.createCell(columnCount++).setCellValue(platform);
             row.createCell(columnCount).setCellValue(userUrl);
@@ -158,27 +156,13 @@ public class APIHelperLighthouse {
             e.printStackTrace();
         }
     }
-    
-    private double getNumericValue(String value) {
-    	
-    	float numericValue = Float.parseFloat(value) / 1000;
-    	double roundedValue = Math.round(numericValue * 100.0) / 100.0;
 
-    	return roundedValue;
-    }
-    
-
-    @SuppressWarnings("deprecation")
-	private void submitValuesInLighthouseCSV(String apiUrl, String userUrl, ValidatableResponse responseForJson,
+    private void submitValuesInLighthouseCSV(String apiUrl, String userUrl, ValidatableResponse responseForJson,
                                             PageTypeLighthouse pageType, String fileName, int mobileRun, String url) {
 
         String fcpTime = "", speedIndex = "", lcpTime = "", interactiveTime = "", totalBlockingTime = "",
                 cumulativeLayoutShift = "", performanceScore = "", accessibilityScore = "", bestPracticeScore = "",
                 pwaScore = "", seoScore = "";
-        
-        String fcpCleanedValue = "", speedIndexCleanedValue = "", lcpTimeCleanedValue = "", 
-        		interactiveTimeCleanedValue = "", totalBlockingTimeCleanedValue = "";
-        
         int sheetNum = (pageType == PageTypeLighthouse.HomePage) ? 2 : 3;
         String platform = (mobileRun == 0) ? "Desktop" : "Mobile";
         
@@ -225,23 +209,12 @@ public class APIHelperLighthouse {
             int columnCount = 0;
 
             row.createCell(columnCount++).setCellValue(Helper.getCurrentDate("MM.dd.YY"));
-            
-            fcpCleanedValue = fcpTime.replace("\u00A0", "").replace("s", "").trim(); 
-            row.createCell(columnCount++).setCellValue(Double.parseDouble(fcpCleanedValue));
-            
-            speedIndexCleanedValue = speedIndex.replace("\u00A0", "").replace("s", "").trim(); 
-            row.createCell(columnCount++).setCellValue(Double.parseDouble(speedIndexCleanedValue));
-            
-            lcpTimeCleanedValue = lcpTime.replace("\u00A0", "").replace("s", "").trim(); 
-            row.createCell(columnCount++).setCellValue(Double.parseDouble(lcpTimeCleanedValue));
-            
-            interactiveTimeCleanedValue = interactiveTime.replace("\u00A0", "").replace("s", "").trim(); 
-            row.createCell(columnCount++).setCellValue(Double.parseDouble(interactiveTimeCleanedValue));
-            
-            totalBlockingTimeCleanedValue = totalBlockingTime.replace(",", "").replace("\u00A0", "").replace("ms", "").trim();
-            row.createCell(columnCount++).setCellValue(Integer.parseInt(totalBlockingTimeCleanedValue));
-            
-            row.createCell(columnCount++).setCellValue(Double.parseDouble(cumulativeLayoutShift));
+            row.createCell(columnCount++).setCellValue(fcpTime);
+            row.createCell(columnCount++).setCellValue(speedIndex);
+            row.createCell(columnCount++).setCellValue(lcpTime);
+            row.createCell(columnCount++).setCellValue(interactiveTime);
+            row.createCell(columnCount++).setCellValue(totalBlockingTime);
+            row.createCell(columnCount++).setCellValue(cumulativeLayoutShift);
             
             setScore(row.createCell(columnCount++), performanceScore);
             setScore(row.createCell(columnCount++), accessibilityScore);
@@ -266,12 +239,12 @@ public class APIHelperLighthouse {
 
             Point point = Point.measurement("web_performance")
                     .addTag("url", url)
-                    .addField("fcpTime", Double.parseDouble(fcpCleanedValue))
-                    .addField("speedIndex", Double.parseDouble(speedIndexCleanedValue))
-                    .addField("lcpTime", Double.parseDouble(lcpTimeCleanedValue))
-                    .addField("interactiveTime", Double.parseDouble(interactiveTimeCleanedValue))
-                    .addField("totalBlockingTime", Integer.parseInt(totalBlockingTimeCleanedValue))
-                    .addField("cumulativeLayoutShift", Double.parseDouble(cumulativeLayoutShift))
+                    .addField("fcpTime", fcpTime)
+                    .addField("speedIndex", Double.parseDouble(speedIndex.replaceAll("[^0-9.]", "")))
+                    .addField("lcpTime", lcpTime)
+                    .addField("interactiveTime", interactiveTime)
+                    .addField("totalBlockingTime", totalBlockingTime)
+                    .addField("cumulativeLayoutShift", cumulativeLayoutShift)
                     .addField("performanceScore", Double.parseDouble(performanceScore) * 100)
                     .addField("accessibilityScore", Double.parseDouble(accessibilityScore) * 100)
                     .addField("bestPracticeScore", Double.parseDouble(bestPracticeScore) * 100)
@@ -281,7 +254,8 @@ public class APIHelperLighthouse {
 
             try (WriteApi writeApi = influxDBClient.getWriteApi()) {
                 writeApi.writePoint(point);
-                System.out.printf("✅ Wrote to InfluxDB for URL: " + url);
+                System.out.printf("✅ Wrote to InfluxDB for URL: %s | lcpTime: %s | interactiveTime: %s | performanceScore: %s\n",
+                		url, fcpTime, speedIndex, performanceScore);
             }
         }
     }
