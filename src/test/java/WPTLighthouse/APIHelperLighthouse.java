@@ -60,7 +60,7 @@ public class APIHelperLighthouse {
 
 		ValidatableResponse response = RestAssured.given().relaxedHTTPSValidation().header("X-WPT-API-KEY", apiKey)
 				.queryParam("url", url).queryParam("location", "Dulles:Chrome.FIOS").queryParam("f", "json")
-				.queryParam("mobile", mobileRun).queryParam("runs", 2).queryParam("fvonly", 1)
+				.queryParam("mobile", mobileRun).queryParam("runs", 1).queryParam("fvonly", 1)
 				.queryParam("lighthouse", 1).when().get(apiUrl).then().log().body();
 
         String userUrl = response.extract().path("data.userUrl").toString();
@@ -79,16 +79,17 @@ public class APIHelperLighthouse {
         testConfig.logComment("WebPageTest API User URL: " + userUrl);
 
         submitValuesInLighthouseCSV(apiJsonUrl, userUrl, responseForJson, pageType, fileName, mobileRun, url);
-        submitValuesInCompleteDataCSV(apiJsonUrl, userUrl, responseForJson, "First Run", pageType, fileName, mobileRun);
-        submitValuesInCompleteDataCSV(apiJsonUrl, userUrl, responseForJson, "Second Run", pageType, fileName, mobileRun);
+        submitValuesInCompleteDataCSV(apiJsonUrl, userUrl, responseForJson, "First Run", pageType, fileName, mobileRun, url);
+        //submitValuesInCompleteDataCSV(apiJsonUrl, userUrl, responseForJson, "Second Run", pageType, fileName, mobileRun);
     }
 
     private void submitValuesInCompleteDataCSV(String apiUrl, String userUrl, ValidatableResponse responseForJson, String run,
-                                               PageTypeLighthouse pageType, String fileName, int mobileRun) {
+                                               PageTypeLighthouse pageType, String fileName, int mobileRun, String url) {
 
         String loadTime = "", ttfb = "", startRender = "", speedIndexTime = "", documentRequestsCount = "",
                 documentBytesIn = "", documentTime = "", fullyLoadedRequestsCount = "", fullBytesIn = "",
-                fullyLoadedTime = "", largestContentfulPaint = "", totalBlockingTime = "", cumulativeLayoutShift = "";
+                fullyLoadedTime = "", firstContentfulPaint = "", largestContentfulPaint = "", totalBlockingTime = "", 
+                cumulativeLayoutShift = "", cleaned = "";
         int sheetNum = 0;
         String runPrefix = (run.equals("First Run")) ? "1" : "2";
         String platform = (mobileRun == 0) ? "Desktop" : "Mobile";
@@ -103,6 +104,7 @@ public class APIHelperLighthouse {
         fullyLoadedRequestsCount = responseForJson.extract().path("data.runs." + runPrefix + ".firstView.requestsFull").toString();
         fullBytesIn = responseForJson.extract().path("data.runs." + runPrefix + ".firstView.bytesIn").toString();
         fullyLoadedTime = responseForJson.extract().path("data.runs." + runPrefix + ".firstView.fullyLoaded").toString();
+        firstContentfulPaint = responseForJson.extract().path("data.runs." + runPrefix + ".firstView[\"chromeUserTiming.firstContentfulPaint\"]").toString();
         largestContentfulPaint = responseForJson.extract().path("data.runs." + runPrefix + ".firstView[\"chromeUserTiming.LargestContentfulPaint\"]").toString();
         cumulativeLayoutShift = responseForJson.extract().path("data.runs." + runPrefix + ".firstView[\"chromeUserTiming.CumulativeLayoutShift\"]").toString();
         totalBlockingTime = responseForJson.extract().path("data.runs." + runPrefix + ".firstView.TotalBlockingTime").toString();
@@ -110,7 +112,7 @@ public class APIHelperLighthouse {
         String seventyFivePercFCP = responseForJson.extract().path("data.median.firstView.CrUX.metrics.first_contentful_paint.percentiles.p75").toString();
         String seventyFivePercLCP = responseForJson.extract().path("data.median.firstView.CrUX.metrics.largest_contentful_paint.percentiles.p75").toString();
         String seventyFivePercCLS = responseForJson.extract().path("data.median.firstView.CrUX.metrics.cumulative_layout_shift.percentiles.p75").toString();
-        String seventyFivePercTTFB = responseForJson.extract().path("data.median.firstView.CrUX.metrics.largest_contentful_paint_image_time_to_first_byte.percentiles.p75").toString();
+        String seventyFivePercTTFB = responseForJson.extract().path("data.median.firstView.CrUX.metrics.experimental_time_to_first_byte.percentiles.p75").toString();
         String seventyFivePercINP = responseForJson.extract().path("data.median.firstView.CrUX.metrics.interaction_to_next_paint.percentiles.p75").toString();
 
         sheetNum = (pageType == PageTypeLighthouse.HomePage) ? 0 : 1;
@@ -130,13 +132,18 @@ public class APIHelperLighthouse {
             row.createCell(columnCount++).setCellValue(getNumericValue(ttfb));
             row.createCell(columnCount++).setCellValue(getNumericValue(startRender));
             row.createCell(columnCount++).setCellValue(Integer.parseInt(speedIndexTime));
+            
+            row.createCell(columnCount++).setCellValue(getNumericValue(firstContentfulPaint));
             row.createCell(columnCount++).setCellValue(getNumericValue(largestContentfulPaint));
-            row.createCell(columnCount++).setCellValue(getNumericValue(cumulativeLayoutShift));
+            
+            double cumulativeLayoutShiftNumericValue = Double.parseDouble(cumulativeLayoutShift);
+            row.createCell(columnCount++).setCellValue(Math.round(cumulativeLayoutShiftNumericValue * 1000.0) / 1000.0);
+            
             row.createCell(columnCount++).setCellValue(getNumericValue(totalBlockingTime));
             row.createCell(columnCount++).setCellValue(getNumericValue(documentTime));
             row.createCell(columnCount++).setCellValue(Integer.parseInt(documentRequestsCount));
             
-            String cleaned = documentBytesIn.replace(",", "").trim();
+            cleaned = documentBytesIn.replace(",", "").trim();
             row.createCell(columnCount++).setCellValue(Integer.parseInt(cleaned) / 1024);
             row.createCell(columnCount++).setCellValue(getNumericValue(fullyLoadedTime));
             row.createCell(columnCount++).setCellValue(Integer.parseInt(fullyLoadedRequestsCount));
@@ -156,6 +163,28 @@ public class APIHelperLighthouse {
             testConfig.logComment("File updated!!");
         } catch (IOException e) {
             e.printStackTrace();
+        }
+        
+        try (InfluxDBClient influxDBClient = InfluxDBClientFactory.create(INFLUX_HOST, TOKEN.toCharArray(), ORG, BUCKET)) {
+
+            Point point = Point.measurement("web_performance")
+                    .addTag("url", url)
+                    .addField("fcpTimeForRun", getNumericValue(firstContentfulPaint))
+                    .addField("lcpTimeForRun", getNumericValue(largestContentfulPaint))
+                    .addField("clsTimeForRun", Double.parseDouble(cumulativeLayoutShift))
+                    .addField("fullyLoadedTime", getNumericValue(fullyLoadedTime))
+                    .addField("fullyLoadedRequests", Integer.parseInt(fullyLoadedRequestsCount))
+                    .addField("fullyLoadedBytesIn", Integer.parseInt(cleaned) / 1024)
+                    .addField("rumFCP", getNumericValue(seventyFivePercFCP))
+                    .addField("rumLCP", getNumericValue(seventyFivePercLCP))
+                    .addField("rumCLS", Math.round(Float.parseFloat(seventyFivePercCLS) * 100.0) / 100.0)
+                    .addField("rumTTFB", getNumericValue(seventyFivePercTTFB))
+                    .time(Instant.now(), WritePrecision.MS); // <--- important: add timestamp
+
+            try (WriteApi writeApi = influxDBClient.getWriteApi()) {
+                writeApi.writePoint(point);
+                System.out.printf("✅ Wrote Performance Data to InfluxDB for URL: " + url);
+            }
         }
     }
     
@@ -261,28 +290,30 @@ public class APIHelperLighthouse {
         }
         
         
-     // Write to InfluxDB
         try (InfluxDBClient influxDBClient = InfluxDBClientFactory.create(INFLUX_HOST, TOKEN.toCharArray(), ORG, BUCKET)) {
 
             Point point = Point.measurement("web_performance")
                     .addTag("url", url)
-                    .addField("fcpTime", Double.parseDouble(fcpCleanedValue))
-                    .addField("speedIndex", Double.parseDouble(speedIndexCleanedValue))
-                    .addField("lcpTime", Double.parseDouble(lcpTimeCleanedValue))
-                    .addField("interactiveTime", Double.parseDouble(interactiveTimeCleanedValue))
-                    .addField("totalBlockingTime", Integer.parseInt(totalBlockingTimeCleanedValue))
-                    .addField("cumulativeLayoutShift", Double.parseDouble(cumulativeLayoutShift))
-                    .addField("performanceScore", Double.parseDouble(performanceScore) * 100)
-                    .addField("accessibilityScore", Double.parseDouble(accessibilityScore) * 100)
-                    .addField("bestPracticeScore", Double.parseDouble(bestPracticeScore) * 100)
-                    .addField("seoScore", Double.parseDouble(seoScore) * 100)
-                    .addField("pwaScore", Double.parseDouble(pwaScore) * 100)
+                    .addField("fcpTimeLighthouse", Double.parseDouble(fcpCleanedValue))
+                    .addField("speedIndexLighthouse", Double.parseDouble(speedIndexCleanedValue))
+                    .addField("lcpTimeLighthouse", Double.parseDouble(lcpTimeCleanedValue))
+                    .addField("interactiveTimeLighthouse", Double.parseDouble(interactiveTimeCleanedValue))
+                    .addField("totalBlockingTimeLighthouse", Integer.parseInt(totalBlockingTimeCleanedValue))
+                    .addField("cumulativeLayoutShiftLighthouse", Double.parseDouble(cumulativeLayoutShift))
+                    .addField("performanceScore", (int) (Float.parseFloat(performanceScore) * 100))
+                    .addField("accessibilityScore", (int) (Float.parseFloat(accessibilityScore) * 100))
+                    .addField("bestPracticeScore", (int) (Float.parseFloat(bestPracticeScore) * 100))
+                    .addField("seoScore", (int) (Float.parseFloat(seoScore) * 100))
+                    .addField("pwaScore", (int) (Float.parseFloat(pwaScore) * 100))
                     .time(Instant.now(), WritePrecision.MS); // <--- important: add timestamp
 
             try (WriteApi writeApi = influxDBClient.getWriteApi()) {
                 writeApi.writePoint(point);
-                System.out.printf("✅ Wrote to InfluxDB for URL: " + url);
+                System.out.printf("✅ Wrote Lighthouse Data to InfluxDB for URL: " + url);
             }
+        }
+        catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
